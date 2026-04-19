@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="時辰查詢">
+<meta name="theme-color" content="#16213E">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<title>小六壬 · 時辰查詢</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family:'微軟正黑體','Microsoft JhengHei','PingFang TC',sans-serif;
+    background:#1A1A2E; color:#fff;
+    min-height:100vh; min-height:100dvh;
+    display:flex; flex-direction:column; align-items:center;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+
+  /* 頂部 */
+  #top {
+    width:100%; background:#16213E;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 20px;
+    padding-top:calc(12px + env(safe-area-inset-top));
+  }
+  #clock { font-size:clamp(22px,6vw,32px); font-weight:bold; color:#E0E0E0; letter-spacing:2px; }
+  #lunar { font-size:clamp(11px,3vw,14px); color:#90A4AE; text-align:right; line-height:1.7; }
+
+  /* 主卡片 */
+  #card {
+    width:92%; max-width:460px; margin:16px auto;
+    border-radius:20px; padding:28px 20px 22px;
+    text-align:center; transition:background .5s;
+  }
+  #card .shi-label { font-size:clamp(13px,3.5vw,16px); opacity:.85; margin-bottom:4px; }
+  #card .result    { font-size:clamp(60px,18vw,88px); font-weight:bold; line-height:1.1; }
+  #card .desc      { font-size:clamp(12px,3vw,14px); opacity:.8; margin-top:10px; line-height:1.8; }
+  .badge {
+    display:inline-block; padding:3px 14px;
+    border-radius:20px; font-size:12px; font-weight:bold;
+    background:rgba(255,255,255,.2); margin-top:10px;
+  }
+
+  /* 今日總覽 */
+  #ov-title { width:92%; max-width:460px; font-size:12px; color:#90A4AE; margin-bottom:6px; padding-left:2px; }
+  #overview {
+    width:92%; max-width:460px;
+    display:grid; grid-template-columns:1fr 1fr; gap:5px;
+    margin-bottom:20px;
+  }
+  .row { display:flex; align-items:stretch; border-radius:10px; overflow:hidden; }
+  .row .shi  { width:50px; background:#16213E; color:#B0BEC5; font-size:12px; font-weight:bold; text-align:center; display:flex; align-items:center; justify-content:center; padding:10px 4px; }
+  .row .val  { width:50px; font-size:13px; font-weight:bold; text-align:center; display:flex; align-items:center; justify-content:center; color:#fff; }
+  .row .time { flex:1; font-size:10px; color:#546E7A; display:flex; align-items:center; padding-left:6px; }
+  .row.current .shi { background:#37474F; color:#fff; }
+  .row.current { box-shadow:0 0 0 1.5px rgba(255,255,255,.2); }
+
+  .c-大安{background:#2E7D32} .c-留連{background:#546E7A}
+  .c-速喜{background:#E65100} .c-赤口{background:#B71C1C}
+  .c-小吉{background:#1565C0} .c-空亡{background:#4A148C}
+</style>
+</head>
+<body>
+
+<div id="top">
+  <div id="clock">00:00:00</div>
+  <div id="lunar">農曆 載入中…</div>
+</div>
+
+<div id="card" class="c-大安">
+  <div class="shi-label" id="shi-label">現在 · 子時</div>
+  <div class="result" id="result">大安</div>
+  <div class="desc" id="desc"></div>
+  <div class="badge" id="badge"></div>
+</div>
+
+<div id="ov-title">今日時辰總覽</div>
+<div id="overview"></div>
+
+<script>
+const CYCLE=['大安','留連','速喜','赤口','小吉','空亡'];
+const AUS=new Set(['大安','速喜','小吉']);
+const DESC={
+  '大安':'事安昌・求財在坤方・失物不遠・行人身未動・病者主無妨',
+  '留連':'凡事滯留・人未歸・官事未了・失物難尋・更須防口舌',
+  '速喜':'喜事將至・求財向南・失物坤方・行人即至・官事有福德',
+  '赤口':'防口舌是非・官非切宜防・失物速速討・行人有驚慌',
+  '小吉':'最為吉昌・路上好商量・陰人報喜・交關甚強・凡事和合',
+  '空亡':'事不祥・求財無益・行人有殃・失物難尋・凡事需小心',
+};
+const SHI=[['子時','23-01'],['丑時','01-03'],['寅時','03-05'],['卯時','05-07'],
+           ['辰時','07-09'],['巳時','09-11'],['午時','11-13'],['未時','13-15'],
+           ['申時','15-17'],['酉時','17-19'],['戌時','19-21'],['亥時','21-23']];
+const MCN=['','正','二','三','四','五','六','七','八','九','十','十一','十二'];
+
+function dayStr(d){
+  const u=['一','二','三','四','五','六','七','八','九','十'];
+  if(d<=10)return'初'+u[d-1];if(d==20)return'二十';
+  if(d<20)return'十'+u[d-11];if(d<30)return'二十'+u[d-21];return'三十';
+}
+function shiIdx(h){return(h===23||h<1)?0:Math.floor((h+1)/2);}
+function getLunar(date){
+  const base=new Date(2026,3,19),baseL={m:3,d:3};
+  const ml=[0,30,29,30,29,30,29,30,30,29,30,29,30];
+  let diff=Math.round((date-base)/86400000),m=baseL.m,d=baseL.d+diff,y=2026;
+  while(d>ml[m]){d-=ml[m];m++;if(m>12){m=1;y++;}}
+  while(d<1){m--;if(m<1){m=12;y--;}d+=ml[m];}
+  return{y,m,d};
+}
+function calc(m,d,sn){return CYCLE[(m+d+sn-3+600)%6];}
+
+// 建總覽
+const ov=document.getElementById('overview');
+const rows=[];
+SHI.forEach(([n,t])=>{
+  const r=document.createElement('div');
+  r.className='row';
+  r.innerHTML=`<div class="shi">${n}</div><div class="val c-大安">-</div><div class="time">${t}</div>`;
+  ov.appendChild(r);rows.push(r);
+});
+
+let lastShi=-1;
+function tick(){
+  const now=new Date(),h=now.getHours(),m=now.getMinutes(),s=now.getSeconds();
+  document.getElementById('clock').textContent=
+    String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  const L=getLunar(now);
+  document.getElementById('lunar').innerHTML=`農曆 ${MCN[L.m]}月${dayStr(L.d)}<br>${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
+  const si=shiIdx(h),sn=si+1,res=calc(L.m,L.d,sn);
+  document.getElementById('card').className='c-'+res;
+  document.getElementById('shi-label').textContent='現在 · '+SHI[si][0];
+  document.getElementById('result').textContent=res;
+  document.getElementById('desc').textContent=DESC[res];
+  const b=document.getElementById('badge');
+  b.textContent=AUS.has(res)?'✦ 吉':'▲ 凶';
+  if(si!==lastShi){
+    lastShi=si;
+    SHI.forEach(([n,t],i)=>{
+      const v=calc(L.m,L.d,i+1),r=rows[i];
+      r.className='row'+(i===si?' current':'');
+      r.children[1].textContent=v;r.children[1].className='val c-'+v;
+    });
+  }
+  setTimeout(tick,1000);
+}
+tick();
+</script>
+</body>
+</html>
