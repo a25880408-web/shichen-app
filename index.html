@@ -106,7 +106,7 @@ function shiIdx(h){return(h===23||h<1)?0:Math.floor((h+1)/2);}
 function getLunar(date){
   const base=new Date(2026,3,19),baseL={m:3,d:3};
   const ml=[0,30,29,30,29,30,29,30,30,29,30,29,30];
-  let diff=Math.round((date-base)/86400000),m=baseL.m,d=baseL.d+diff,y=2026;
+  let diff=Math.floor((date-base)/86400000),m=baseL.m,d=baseL.d+diff,y=2026;
   while(d>ml[m]){d-=ml[m];m++;if(m>12){m=1;y++;}}
   while(d<1){m--;if(m<1){m=12;y--;}d+=ml[m];}
   return{y,m,d};
