@@ -1,7 +1,7 @@
 {
   "name": "小六壬・時辰查詢",
   "short_name": "時辰查詢",
-  "start_url": "/",
+  "start_url": "/shichen-app/",
   "display": "standalone",
   "background_color": "#1A1A2E",
   "theme_color": "#16213E",
