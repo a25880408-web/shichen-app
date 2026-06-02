@@ -128,7 +128,9 @@ function tick(){
   const now=new Date(),h=now.getHours(),m=now.getMinutes(),s=now.getSeconds();
   document.getElementById('clock').textContent=
     String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
-  const L=getLunar(now);
+  // 傳統農曆以子時（23:00）為新一天的開始，故23點後要用隔天的農曆日期
+  const lunarBase=h===23?new Date(now.getTime()+86400000):now;
+  const L=getLunar(lunarBase);
   document.getElementById('lunar').innerHTML=`農曆 ${MCN[L.m]}月${dayStr(L.d)}<br>${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
   const si=shiIdx(h),sn=si+1,res=calc(L.m,L.d,sn);
   document.getElementById('card').className='c-'+res;
